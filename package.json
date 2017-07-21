@@ -1,0 +1,17 @@
+{
+  "name": "trahearne",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prestart": "mongod --dbpath=/usr/data --port 27017 --fork --logpath /var/log/mongod.log",
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "eris": "^0.7.0",
+    "mongodb": "^2.2.30"
+  }
+}
