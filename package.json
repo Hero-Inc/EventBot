@@ -1,15 +1,22 @@
 {
   "name": "trahearne",
   "version": "1.0.0",
-  "description": "",
+  "description": "discord event bot",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prestart": "mongod --dbpath=/usr/data --port 27017 --fork --logpath /var/log/mongod.log",
     "start": "node index.js"
   },
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Heroj04/Trahearne.git"
+  },
+  "author": "Jack Footner",
   "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Heroj04/Trahearne/issues"
+  },
+  "homepage": "https://github.com/Heroj04/Trahearne#readme",
   "dependencies": {
     "eris": "^0.7.0",
     "mongodb": "^2.2.30"
