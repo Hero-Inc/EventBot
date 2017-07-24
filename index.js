@@ -176,11 +176,12 @@ var commands = [
 			let query = {
 				$or: [
 					{
-						$and: [
-							{
-								recurring: true,
-							},
-						],
+						recurring: true,
+					},
+					{
+						time: {
+							$gte: timeNow,
+						},
 					},
 				],
 			};
@@ -191,17 +192,17 @@ var commands = [
 			if (args.join(' ').toLowerCase().includes('--channel')) {
 				query.channels = msg.channel.id;
 			}
-			if (!args.join(' ').toLowerCase().includes('--old')) {
+			if (args.join(' ').toLowerCase().includes('--old')) {
 				query.$or.push({
 					time: {
-						$gte: timeNow,
+						$lte: timeNow,
 					},
 				});
 			}
 			if (!args.join(' ').toLowerCase().includes('--inactive')) {
-				query.$or[0].$and.push({
-					active: true,
-				});
+				query.dead = {
+					$ne: true,
+				};
 			}
 			// Run the query
 			db.collection('events')
@@ -246,6 +247,9 @@ var commands = [
 			let result = db.collection('events')
 				.update({
 					_id: new mongo.ObjectID(args[0]),
+					dead: {
+						$ne: true,
+					},
 					$or: [
 						{
 							time: {
@@ -253,14 +257,7 @@ var commands = [
 							},
 						},
 						{
-							$and: [
-								{
-									recurring: true,
-								},
-								{
-									active: true,
-								},
-							],
+							recurring: true,
 						},
 					],
 				}, {
@@ -372,6 +369,9 @@ bot
 function syncEvents() {
 	db.collection('events')
 		.find({
+			dead: {
+				$ne: true,
+			},
 			$or: [
 				{
 					time: {
@@ -380,14 +380,7 @@ function syncEvents() {
 					},
 				},
 				{
-					$and: [
-						{
-							recurring: true,
-						},
-						{
-							active: true,
-						},
-					],
+					recurring: true,
 				},
 			],
 		})
