@@ -1,25 +1,18 @@
 'use strict';
 const Discord = require('eris');
-// const fs = require('fs');
 const mongo = require('mongodb');
 
-var config = {};
+var config = require('./config.js');
 var events = [];
 var timeNow = Math.floor(new Date() / 1000);
-
 var db;
-/*
-let files = fs.readdirSync('./');
-if (!files.includes('config.js')) {
-	return console.log('[ERROR] No Config.js file found');
-}
-*/
-config = require('./config.js');
+
+// Make the owner an admin
 config.adminUsers.push(config.botOwner);
 
 var commands = [
 	[
-		'ping',
+		'Ping',
 		'Pong!',
 		{
 			description: 'Replies "Pong!"',
@@ -89,12 +82,12 @@ var commands = [
 				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
 			}
 			let id, time, message, timer, doc;
-			let index = args[args.length - 1].indexOf('--recurring=');
+			let index = args.join(' ').toLowerCase().split(' ')[args.length - 1].indexOf('--recurring=');
 			if (index !== -1) {
 				timer = args[args.length - 1].split('=')[1];
 			}
 			for (var i = 0; i < args.length; i++) {
-				if (args === '|') {
+				if (args[i] === '|') {
 					message.trim();
 					break;
 				}
@@ -107,7 +100,7 @@ var commands = [
 				id = msg.author.getDMChannel();
 			}
 
-			if (time === undefined || time < 1 || message === undefined || message === '') {
+			if (time === undefined || message === undefined || message === '') {
 				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
 			}
 			if (timer !== undefined && timer < 60) {
@@ -154,11 +147,11 @@ var commands = [
 					_id: new mongo.ObjectID(args[0]),
 				});
 
-			if (result.nRemoved === 0) {
-				return 'The event with that ID could not be found.';
-			} else if (result.hasWriteError()) {
+			if (result.hasWriteError()) {
 				console.log(`[ERROR] Issue deleting eventID ${args[0]}: ${result.writeError.errmsg}`);
 				return 'There was an error deleting the event.';
+			} else if (result.nRemoved === 0) {
+				return 'The event with that ID could not be found.';
 			} else {
 				syncEvents();
 				return `Succesfully deleted event with ID: ${args[0]}`;
@@ -191,6 +184,7 @@ var commands = [
 					},
 				],
 			};
+			// Build the query from included flags
 			if (args.join(' ').toLowerCase().includes('--subscribed')) {
 				query.channels = msg.author.getDMChannel();
 			}
@@ -209,6 +203,7 @@ var commands = [
 					active: true,
 				});
 			}
+			// Run the query
 			db.collection('events')
 				.find(query)
 				.toArray((err, docs) => {
@@ -305,23 +300,6 @@ var commands = [
 			let result = db.collection('events')
 				.update({
 					_id: new mongo.ObjectID(args[0]),
-					$or: [
-						{
-							time: {
-								$gt: timeNow,
-							},
-						},
-						{
-							$and: [
-								{
-									recurring: true,
-								},
-								{
-									active: true,
-								},
-							],
-						},
-					],
 				}, {
 					$pull: {
 						channels: id,
@@ -370,6 +348,7 @@ bot
 		console.log(`[ERROR] ERIS Error: ${err}`);
 	})
 	.on('ready', () => {
+		// Set the botPrefix on server that have previously used the SetPrefix command
 		db.collection('guildData')
 			.find({
 				prefix: {
@@ -389,6 +368,7 @@ bot
 		console.log('[INFO] Connected and Ready');
 	});
 
+// Update the local array of events with upcoming events so we don't query every second
 function syncEvents() {
 	db.collection('events')
 		.find({
@@ -419,6 +399,7 @@ function syncEvents() {
 		});
 }
 
+// Check to see if any events in the local array are set to activate at the current second
 function checkEvents() {
 	timeNow = Math.floor(new Date() / 1000);
 	for (let i = 0; i < events.length; i++) {
