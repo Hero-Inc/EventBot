@@ -1,19 +1,42 @@
 'use strict';
 const Discord = require('eris');
-const mongo = require('mongodb');
+const Mongo = require('mongodb');
+const Winston = require('winston');
 
-var config = require('./config.js');
+// Setup winston logging
+var log = new Winston.Logger({
+	transports: [
+		new Winston.transports.Console({
+			handleExceptions: true,
+		}),
+		new Winston.transports.File({
+			filename: './trahearne.log',
+			handleExceptions: true,
+		}),
+	],
+	level: process.env.DEBUG_LEVEL === undefined ? 'info' : process.env.DEBUG_LEVEL,
+	exitOnError: false,
+});
+
 var events = [];
 var timeNow = Math.floor(new Date() / 1000);
 var db;
 
+log.debug('Connecting to config file');
+var config = require('./config.js');
+
 // Make the owner an admin
+log.debug('Adding owner to adminUsers');
 config.adminUsers.push(config.botOwner);
 
+log.debug('Creating commands array');
 var commands = [
 	[
 		'Ping',
-		'Pong!',
+		(msg, args) => {
+			log.debug('[Command] Ping', { msg: msg, args: args });
+			return 'Pong!';
+		},
 		{
 			description: 'Replies "Pong!"',
 		},
@@ -21,6 +44,7 @@ var commands = [
 	[
 		'SetPrefix',
 		(msg, args) => {
+			log.debug('[Command] SetPrefix', { msg: msg, args: args });
 			if (args.length === 1) {
 				let result = db.collection('guildData')
 					.update({
@@ -33,13 +57,15 @@ var commands = [
 						upsert: true,
 					});
 
-				if (result.hasWriteError()) {
-					console.log(`[ERROR] Issue setting bot prefix for guildID ${msg.channel.guild.id}: ${result.writeError.errmsg}`);
+				if (result.writeError) {
+					log.error(`Issue setting bot prefix for guildID ${msg.channel.guild.id}`, { ReportedError: result.writeError.errmsg });
 					return 'There was an error saving settings for this guild.';
 				} else {
+					log.debug(`Succesfully set bot prefix for guildID ${msg.channel.guild.id}`);
 					return `Succesfully set command prefix to ${args[0]}`;
 				}
 			} else {
+				log.debug('Bad Syntax. Prefix not set');
 				return 'Please supply one word or character to use as the command prefix';
 			}
 		},
@@ -59,7 +85,10 @@ var commands = [
 	],
 	[
 		'GetLink',
-		config.inviteLink === undefined || config.inviteLink === '' ? 'Sorry, an invite link has not been configured by the bot owner.' : config.inviteLink,
+		(msg, args) => {
+			log.debug('[Command] GetLink', { msg: msg, args: args });
+			return config.inviteLink === undefined || config.inviteLink === '' ? 'Sorry, an invite link has not been configured by the bot owner.' : config.inviteLink;
+		},
 		{
 			aliases: ['Link', 'AddURL'],
 			description: 'Add me to a guild',
@@ -68,7 +97,10 @@ var commands = [
 	],
 	[
 		'Time',
-		`Epoch Time: \`${Math.floor(new Date() / 1000)}\`\nUTC Time:   \`${new Date().toUTCString()}\``,
+		(msg, args) => {
+			log.debug('[Command] Time', { msg: msg, args: args });
+			return `Epoch Time: \`${Math.floor(new Date() / 1000)}\`\nUTC Time:   \`${new Date().toUTCString()}\``;
+		},
 		{
 			aliases: ['GetTime', 'Epoch'],
 			description: 'Get the current Unix Epoch Time',
@@ -78,6 +110,7 @@ var commands = [
 	[
 		'NewEvent',
 		(msg, args) => {
+			log.debug('[Command] NewEvent', { msg: msg, args: args });
 			if (args.length < 3 || args.indexOf('|') < 1) {
 				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
 			}
@@ -113,7 +146,7 @@ var commands = [
 				doc.recurring = true;
 				doc.timer = timer;
 			}
-			doc._id = new mongo.ObjectID();
+			doc._id = new Mongo.ObjectID();
 			doc.message = message;
 			doc.time = time;
 			doc.channels = [id];
@@ -121,12 +154,14 @@ var commands = [
 			let result = db.collection('events')
 				.save(doc);
 			if (result.hasWriteError()) {
-				console.log(`[ERROR] Issue creating event: ${result.writeError.errmsg}`);
+				log.error(`Issue creating event: ${result.writeError.errmsg}`);
 				return 'There was an error creating the event.';
 			} else if (result.nInserted !== 1) {
+				log.error('Something went wrong creating this event', { result: result });
 				return 'There was an error creating the event.';
 			} else {
 				syncEvents();
+				log.verbose('New event successfully created', { eventDoc: doc });
 				return `Succesfully created event with ID: ${doc._id}. You have been automatically subscibed.`;
 			}
 		},
@@ -145,19 +180,22 @@ var commands = [
 	[
 		'DeleteEvent',
 		(msg, args) => {
+			log.debug('[Command] DeleteEvent', { msg: msg, args: args });
 			timeNow = Math.floor(new Date() / 1000);
 			let result = db.collection('events')
 				.remove({
-					_id: new mongo.ObjectID(args[0]),
+					_id: new Mongo.ObjectID(args[0]),
 				});
 
 			if (result.hasWriteError()) {
-				console.log(`[ERROR] Issue deleting eventID ${args[0]}: ${result.writeError.errmsg}`);
+				log.error(`Issue deleting eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
 				return 'There was an error deleting the event.';
 			} else if (result.nRemoved === 0) {
+				log.error(`Event was not deleted as no event was found with ID: ${args[0]}`);
 				return 'The event with that ID could not be found.';
 			} else {
 				syncEvents();
+				log.verbose(`Succesfully deleted event with ID: ${args[0]}`);
 				return `Succesfully deleted event with ID: ${args[0]}`;
 			}
 		},
@@ -176,6 +214,7 @@ var commands = [
 	[
 		'ViewEvents',
 		(msg, args) => {
+			log.debug('[Command] ViewEvents', { msg: msg, args: args });
 			timeNow = Math.floor(new Date() / 1000);
 			let query = {
 				$or: [
@@ -190,6 +229,7 @@ var commands = [
 				],
 			};
 			// Build the query from included flags
+			log.silly('Building event query');
 			if (args.join(' ').toLowerCase().includes('--subscribed')) {
 				query.channels = msg.author.getDMChannel();
 			}
@@ -208,13 +248,14 @@ var commands = [
 					$ne: true,
 				};
 			}
+			log.debug('Event query created', { query: query });
 			// Run the query
 			db.collection('events')
 				.find(query)
 				.toArray((err, docs) => {
 					if (err) {
 						bot.createMessage(msg.channel.id, `[ERROR] Unable to access database`);
-						return console.log(`[ERROR] Unable to sync events with database: ${err}`);
+						return log.error(`Unable to access database to view events`, { ReportedError: err });
 					}
 					let message = '~~~ Event List ~~~\n';
 					for (var i = 0; i < docs.length; i++) {
@@ -228,6 +269,7 @@ var commands = [
 						message += '------\n';
 					}
 					message += `Total Event Count: ${docs.length}`;
+					log.debug(`Succesfully returned ${docs.length} events`);
 					bot.createMessage(msg.author.getDMChannel(), message);
 				});
 		},
@@ -241,6 +283,7 @@ var commands = [
 	[
 		'Subscribe',
 		(msg, args) => {
+			log.debug('[Command] Subscribe', { msg: msg, args: args });
 			let id;
 			if (args.join(' ').toLowerCase().includes('--channel')) {
 				id = msg.channel.id;
@@ -250,7 +293,7 @@ var commands = [
 			timeNow = Math.floor(new Date() / 1000);
 			let result = db.collection('events')
 				.update({
-					_id: new mongo.ObjectID(args[0]),
+					_id: new Mongo.ObjectID(args[0]),
 					dead: {
 						$ne: true,
 					},
@@ -271,13 +314,15 @@ var commands = [
 				});
 
 			if (result.nMatched !== 1) {
+				log.debug(`Could not subscibe user to event (ID: ${args[0]}). Event not found.`);
 				return 'The event with that ID could not be found.';
-			} else if (result.hasWriteError()) {
-				console.log(`[ERROR] Issue subscribing user to eventID ${args[0]}: ${result.writeError.errmsg}`);
+			} else if (result.writeError) {
+				log.error(`Issue subscribing user to eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
 				return 'There was an error subscribing you to the event.';
 			} else {
 				syncEvents();
-				return `Succesfully subscribed to event with ID: ${args[0]}`;
+				log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
+				return `Succesfully unsubscribed from event with ID: ${args[0]}`;
 			}
 		},
 		{
@@ -291,6 +336,7 @@ var commands = [
 	[
 		'Unsubscribe',
 		(msg, args) => {
+			log.debug('[Command] Unsubscribe', { msg: msg, args: args });
 			let id;
 			if (args.join(' ').toLowerCase().includes('--channel')) {
 				id = msg.channel.id;
@@ -300,7 +346,7 @@ var commands = [
 			timeNow = Math.floor(new Date() / 1000);
 			let result = db.collection('events')
 				.update({
-					_id: new mongo.ObjectID(args[0]),
+					_id: new Mongo.ObjectID(args[0]),
 				}, {
 					$pull: {
 						channels: id,
@@ -308,12 +354,14 @@ var commands = [
 				});
 
 			if (result.nMatched !== 1) {
+				log.debug(`Could not unsubscibe user from event (ID: ${args[0]}). Event not found.`);
 				return 'The event with that ID could not be found.';
-			} else if (result.hasWriteError()) {
-				console.log(`[ERROR] Issue unsubscribing user from eventID ${args[0]}: ${result.writeError.errmsg}`);
+			} else if (result.writeError) {
+				log.error(`Issue unsubscribing user from eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
 				return 'There was an error unsubscribing you from the event.';
 			} else {
 				syncEvents();
+				log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
 				return `Succesfully unsubscribed from event with ID: ${args[0]}`;
 			}
 		},
@@ -327,6 +375,7 @@ var commands = [
 	],
 ];
 
+log.debug('Creating bot');
 var bot = new Discord.CommandClient(
 	config.botToken, {
 		// Bot Options
@@ -344,12 +393,17 @@ var bot = new Discord.CommandClient(
 	}
 );
 
+log.debug('Creating bot event listeners');
 bot
 	.on('error', err => {
-		console.log(`[ERROR] ERIS Error: ${err}`);
+		log.error(`ERIS Error`, { ReportedError: err });
+	})
+	.on('warn', err => {
+		log.warn(`ERIS Warning`, { ReportedError: err });
 	})
 	.on('ready', () => {
 		// Set the botPrefix on server that have previously used the SetPrefix command
+		log.debug('Setting guild command prefixes');
 		db.collection('guildData')
 			.find({
 				prefix: {
@@ -358,19 +412,22 @@ bot
 			})
 			.toArray((err, data) => {
 				if (err) {
-					console.log(`[ERROR] Failed to retrieve Guild Data from database. Prefixes not set.`);
+					return log.error(`Failed to retrieve Guild Data from database. Prefixes not set.`, { ReportedError: err });
 				}
 				for (var i = 0; i < data.length; i++) {
 					bot.registerGuildPrefix(data[i]._id, data[i].prefix);
 				}
+				log.debug('Prefixes set');
 			});
 		// Check for events every second
 		setInterval(checkEvents, 1000);
-		console.log('[INFO] Connected and Ready');
+		log.info('Bot ready');
 	});
 
 // Update the local array of events with upcoming events so we don't query every second
 function syncEvents() {
+	log.debug('Syncing events to local array');
+	timeNow = Math.floor(new Date() / 1000);
 	db.collection('events')
 		.find({
 			dead: {
@@ -390,23 +447,27 @@ function syncEvents() {
 		})
 		.toArray((err, docs) => {
 			if (err) {
-				return console.log(`[ERROR] Unable to sync events with database: ${err}`);
+				return log.error(`Unable to sync events with database`, { ReportedError: err });
 			}
 			events = docs;
+			log.debug('Events succesfully synced to local array');
 		});
 }
 
 // Check to see if any events in the local array are set to activate at the current second
 function checkEvents() {
+	log.silly('Checking events for activation');
 	timeNow = Math.floor(new Date() / 1000);
 	for (let i = 0; i < events.length; i++) {
 		// See if event has triggered
 		let e = events[i];
 		if (!e.recurring && e.time === timeNow) {
+			log.debug('Event activated', e);
 			for (let j = 0; j < e.channels.length; j++) {
 				bot.createMessage(e.channels[j], e.message);
 			}
 		} else if (e.recurring && (timeNow - e.time) % e.timer === 0) {
+			log.debug('Event activated', e);
 			for (let j = 0; j < e.channels.length; j++) {
 				bot.createMessage(e.channels[j], e.message);
 			}
@@ -415,36 +476,34 @@ function checkEvents() {
 }
 
 function initialise() {
+	log.verbose('Initialising bot instance');
 	// Sync the events array every 10 seconds
 	syncEvents();
 	setInterval(syncEvents, 10000);
-	console.log('[INFO] Registering commands');
+	bot.debug('Registering commands');
 	for (let i = 0; i < commands.length; i++) {
 		bot.registerCommand(commands[i][0], commands[i][1], commands[i][2]);
 	}
-	console.log('[INFO] Connecting to Discord');
+	log.debug('Connecting to Discord.');
 	bot.connect();
 }
 
-console.log('[INFO] Connecting to Mongodb');
-mongo.MongoClient.connect(config.connectionString, (err, database) => {
+log.verbose('Connecting to MongoDB', { link: config.connectionString });
+Mongo.MongoClient.connect(config.connectionString, (err, database) => {
 	if (err) {
-		console.log(err);
-		console.log(`[ERROR] Mongodb connection failed. Retrying ...`);
+		log.error('MongoDB connection failed. Retrying ...', { ReportedError: err });
 		// Wait 3 seconds to try again
 		setTimeout(
-			mongo.MongoClient.connect.bind(null, config.connectionString, (err2, database2) => {
+			Mongo.MongoClient.connect.bind(null, config.connectionString, (err2, database2) => {
 				if (err) {
-					console.log(err);
-					console.log(`[ERROR] Mongodb connection failed. Retrying ...`);
+					log.error('MongoDB connection failed. Retrying ...', { ReportedError: err2 });
 					// Wait 3 seconds to try again
 					setTimeout(
-						mongo.MongoClient.connect.bind(null, config.connectionString, (err3, database3) => {
+						Mongo.MongoClient.connect.bind(null, config.connectionString, (err3, database3) => {
 							if (err) {
-								console.log(err);
-								return console.log(`[ERROR] Mongodb connection failed. Please check the connection string and restart the bot.`);
+								return log.error('MongoDB connection failed. Please check connectionString in config and try again.', { ReportedError: err3 });
 							}
-							console.log('[INFO] Connected to Mongodb');
+							log.verbose('Connected to Mongodb');
 							db = database3;
 							initialise();
 						}),
@@ -452,7 +511,7 @@ mongo.MongoClient.connect(config.connectionString, (err, database) => {
 					);
 					return;
 				}
-				console.log('[INFO] Connected to Mongodb');
+				log.verbose('Connected to Mongodb');
 				db = database2;
 				initialise();
 			}),
@@ -460,7 +519,7 @@ mongo.MongoClient.connect(config.connectionString, (err, database) => {
 		);
 		return;
 	}
-	console.log('[INFO] Connected to Mongodb');
+	log.verbose('Connected to Mongodb');
 	db = database;
 	initialise();
 });

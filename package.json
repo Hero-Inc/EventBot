@@ -19,6 +19,7 @@
   "homepage": "https://github.com/Heroj04/Trahearne#readme",
   "dependencies": {
     "eris": "^0.7.0",
-    "mongodb": "^2.2.30"
+    "mongodb": "^2.2.30",
+    "winston": "^2.3.1"
   }
 }
