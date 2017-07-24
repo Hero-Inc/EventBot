@@ -81,7 +81,11 @@ var commands = [
 			if (args.length < 3 || args.indexOf('|') < 1) {
 				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
 			}
-			let id, time, message, timer, doc;
+			let id,
+				time,
+				message,
+				timer,
+				doc = {};
 			let index = args.join(' ').toLowerCase().split(' ')[args.length - 1].indexOf('--recurring=');
 			if (index !== -1) {
 				timer = args[args.length - 1].split('=')[1];
