@@ -110,7 +110,7 @@ var commands = [
 				// Get rucurring timer
 				let index = args.join(' ').toLowerCase().split(' ')[args.length - 1].indexOf('--recurring=');
 				if (index !== -1) {
-					timer = args[args.length - 1].split('=')[1];
+					timer = parseInt(args[args.length - 1].split('=')[1]);
 				}
 
 				// Get Message
@@ -131,7 +131,7 @@ var commands = [
 				}
 
 				// Check/Set timer
-				if (timer !== undefined && timer < 60) {
+				if (timer !== undefined && !isNaN(timer) && timer < 60) {
 					bot.createMessage(msg.channel.id, 'Recurring events should not occur more than once a minute');
 				} else if (timer !== undefined) {
 					doc.recurring = true;
