@@ -103,7 +103,7 @@ var commands = [
 				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
 			}
 			let time,
-				message,
+				message = '',
 				timer,
 				doc = {};
 			let run = (id) => {
@@ -144,7 +144,7 @@ var commands = [
 
 				let result = db.collection('events')
 					.save(doc);
-				if (result.hasWriteError()) {
+				if (result.writeError) {
 					log.error(`Issue creating event: ${result.writeError.errmsg}`);
 					bot.createMessage(msg.channel.id, 'There was an error creating the event.');
 				} else if (result.nInserted !== 1) {
@@ -409,7 +409,7 @@ bot
 	})
 	.on('messageCreate', msg => {
 		if (msg.command) {
-			log.debug('Command Recieved', { author: `${msg.author.username}#${msg.author.discriminator}`, msg: msg.content });
+			log.verbose('Command Recieved', { author: `"${msg.author.username}#${msg.author.discriminator}"`, msg: msg.content });
 		}
 	})
 	.on('ready', () => {
