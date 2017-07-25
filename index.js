@@ -269,7 +269,7 @@ var commands = [
 					message += `Total Event Count: ${docs.length}`;
 					log.debug(`Succesfully returned ${docs.length} events`);
 					msg.author.getDMChannel().then(channel => {
-						channel.createMessage(channel, message);
+						channel.createMessage(message);
 					});
 				});
 		},
