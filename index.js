@@ -386,7 +386,7 @@ bot
 		log.warn(`ERIS Warning`, { ReportedError: err });
 	})
 	.on('messageCreate', msg => {
-		log.debug('Command Recieved', { author: msg.author, msg: msg.content });
+		log.debug('Command Recieved', { author: `${msg.author.username}#${msg.author.discriminator}`, msg: msg.content });
 	})
 	.on('ready', () => {
 		// Set the botPrefix on server that have previously used the SetPrefix command
