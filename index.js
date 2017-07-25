@@ -137,6 +137,7 @@ var commands = [
 					doc.recurring = true;
 					doc.timer = timer;
 				}
+				doc.hidden = args.join(' ').toLowerCase().includes('--hidden');
 				doc._id = new Mongo.ObjectID();
 				doc.message = message;
 				doc.time = time;
@@ -168,8 +169,8 @@ var commands = [
 		{
 			aliases: ['CreateEvent'],
 			description: 'Create a new event',
-			fullDescription: 'Create an event which will send a reminder to all subscribed users at a specified time.',
-			usage: 'NewEvent <Message> | <EpochTime> [--recurring=<SecondsBetweenEvents>] [--channel]',
+			fullDescription: 'Create an event which will send a reminder to all subscribed users at a specified EpochTime.\nIncluding the recurring flag will make the event occur every <ammount> of seconds from EpochTime.\nIncluding the "--channel" flag will autosubscribe the channel not the user.\nIncluding the "--hidden" flag will hide the event from the viewEvents command (Take note of the ID if you want to do anything else with this event).',
+			usage: 'NewEvent <Message> | <EpochTime> [--recurring=<SecondsBetweenEvents>] [--channel] [--hidden]',
 			argsRequired: true,
 			requirements: {
 				userIDs: config.adminUsers,
@@ -225,6 +226,7 @@ var commands = [
 						},
 					},
 				],
+				hidden: { $ne: true },
 			};
 			// Build the query from included flags
 			log.silly('Building event query');
