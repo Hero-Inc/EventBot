@@ -108,15 +108,16 @@ var commands = [
 				doc = {};
 			let run = (id) => {
 				// Get rucurring timer
-				let index = args.join(' ').toLowerCase().split(' ')[args.length - 1].indexOf('--recurring=');
-				if (index !== -1) {
-					timer = parseInt(args[args.length - 1].split('=')[1]);
+				for (let i = 0; i < args.length; i++) {
+					if (args[i].toLowerCase().includes('--recurring')) {
+						timer = parseInt(args[i].split('=')[1]);
+					}
 				}
 
 				// Get Message
 				for (var i = 0; i < args.length; i++) {
 					if (args[i] === '|') {
-						message.trim();
+						message = message.trim();
 						break;
 					}
 					message += `${args[i]} `;
@@ -131,11 +132,15 @@ var commands = [
 				}
 
 				// Check/Set timer
-				if (timer !== undefined && !isNaN(timer) && timer < 60) {
-					bot.createMessage(msg.channel.id, 'Recurring events should not occur more than once a minute');
-				} else if (timer !== undefined) {
-					doc.recurring = true;
-					doc.timer = timer;
+				if (timer !== undefined) {
+					if (isNaN(timer)) {
+						console.log('recurring events should be numbers');
+					} else if (timer < 60) {
+						return bot.createMessage(msg.channel.id, 'Recurring events should not occur more than once a minute');
+					} else {
+						doc.recurring = true;
+						doc.timer = timer;
+					}
 				}
 				doc.hidden = args.join(' ').toLowerCase().includes('--hidden');
 				doc._id = new Mongo.ObjectID();
