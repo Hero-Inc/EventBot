@@ -123,7 +123,7 @@ var commands = [
 				}
 
 				// Get time
-				time = args[args.indexOf('|') + 1];
+				time = parseInt(args[args.indexOf('|') + 1]);
 
 				// Check time and message
 				if (time === undefined || isNaN(time) || message === undefined || message === '') {
