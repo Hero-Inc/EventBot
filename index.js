@@ -259,7 +259,7 @@ var commands = [
 					for (var i = 0; i < docs.length; i++) {
 						message += `EventID:   ${docs[i]._id}`;
 						message += `Message:   ${docs[i].message}\n`;
-						message += `Time:      ${new Date(docs[i].time * 1000).toUTCSting()}\n`;
+						message += `Time:      ${new Date(docs[i].time * 1000).toUTCString()}\n`;
 						message += `Sub Count: ${docs[i].channels.length}\n`;
 						if (docs[i].recurring) {
 							message += `Reccuring: Every ${docs[i].timer} seconds\n`;
