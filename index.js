@@ -3,6 +3,8 @@ const Discord = require('eris');
 const Mongo = require('mongodb');
 const Winston = require('winston');
 
+var config = require('./config.js');
+
 // Setup winston logging
 var log = new Winston.Logger({
 	transports: [
@@ -14,16 +16,13 @@ var log = new Winston.Logger({
 			handleExceptions: true,
 		}),
 	],
-	level: process.env.DEBUG_LEVEL === undefined ? 'info' : process.env.DEBUG_LEVEL,
+	level: config.debugLevel === undefined ? 'info' : config.debugLevel,
 	exitOnError: false,
 });
 
 var events = [];
 var timeNow = Math.floor(new Date() / 1000);
 var db;
-
-log.debug('Connecting to config file');
-var config = require('./config.js');
 
 // Make the owner an admin
 log.debug('Adding owner to adminUsers');
@@ -137,7 +136,7 @@ var commands = [
 				id = msg.author.getDMChannel();
 			}
 
-			if (time === undefined || message === undefined || message === '') {
+			if (time === undefined || isNaN(time) || message === undefined || message === '') {
 				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
 			}
 			if (timer !== undefined && timer < 60) {

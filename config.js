@@ -3,6 +3,7 @@ module.exports = {
 	botOwner: '134098728880439296',
 	inviteLink: 'www.example.com/invite?id=092735472813',
 	connectionString: 'mongodb://localhost:27017/trahearne',
+	debugLevel: 'info',
 	adminUsers: [
 		'12345678',
 		'09876556',
