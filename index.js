@@ -226,7 +226,6 @@ var commands = [
 						},
 					},
 				],
-				hidden: { $ne: true },
 			};
 			// Build the query from included flags
 			log.silly('Building event query');
@@ -235,6 +234,14 @@ var commands = [
 			}
 			if (args.join(' ').toLowerCase().includes('--channel')) {
 				query.channels = msg.channel.id;
+			}
+			if (!args.join(' ').toLowerCase().includes('--hidden') || !(config.adminUsers.includes(msg.author.id) || config.adminRoles.some((element) => {
+				if (msg.member) {
+					return msg.member.roles.includes(element);
+				}
+				return false;
+			}))) {
+				query.hidden = { $ne: true };
 			}
 			if (args.join(' ').toLowerCase().includes('--old')) {
 				query.$or.push({
@@ -263,6 +270,9 @@ var commands = [
 						message += `Message:   \`${docs[i].message}\`\n`;
 						message += `Time:      \`${new Date(docs[i].time * 1000).toUTCString()}\`\n`;
 						message += `Sub Count: \`${docs[i].channels.length}\`\n`;
+						if (docs[i].hidden) {
+							message += `Hidden:    \`TRUE\`\n`;
+						}
 						if (docs[i].recurring) {
 							message += `Reccuring: Every \`${docs[i].timer}\` seconds\n`;
 						}
@@ -278,7 +288,7 @@ var commands = [
 		{
 			aliases: ['ListEvents'],
 			description: 'List all available events',
-			fullDescription: 'Produce a list of all events which can be subscribed to.\nUsing the "--old" or "--inactive" flags causes the results to show those events also (This may produce a very large list).\nUsing the "--subscribed" flag only shows events to which you are subscribed.\nUsing the "--channel" flag displays only events the current channel is subscribed to.',
+			fullDescription: 'Produce a list of all events which can be subscribed to.\nUsing the "--old" or "--inactive" flags causes the results to show those events also (This may produce a very large list).\nUsing the "--subscribed" flag only shows events to which you are subscribed.\nUsing the "--channel" flag displays only events the current channel is subscribed to.\nUsing the "--hidden" flag and having admin rights also shows hidden events.',
 			usage: 'ViewEvents [--old] [--inactive] [--subscribed] [--channel]',
 		},
 	],
