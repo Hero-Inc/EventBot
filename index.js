@@ -41,7 +41,7 @@ var commands = [
 		'SetPrefix',
 		(msg, args) => {
 			if (args.length === 1) {
-				let result = db.collection('guildData')
+				db.collection('guildData')
 					.update({
 						_id: msg.channel.guild.id,
 					}, {
@@ -50,15 +50,16 @@ var commands = [
 						},
 					}, {
 						upsert: true,
+					})
+					.then(result => {
+						if (result.writeError) {
+							log.error(`Issue setting bot prefix for guildID ${msg.channel.guild.id}`, { ReportedError: result.writeError.errmsg });
+							bot.createMessage(msg.channel.id, 'There was an error saving settings for this guild.');
+						} else {
+							log.debug(`Succesfully set bot prefix for guildID ${msg.channel.guild.id}`);
+							bot.createMessage(msg.channel.id, `Succesfully set command prefix to ${args[0]}`);
+						}
 					});
-
-				if (result.writeError) {
-					log.error(`Issue setting bot prefix for guildID ${msg.channel.guild.id}`, { ReportedError: result.writeError.errmsg });
-					return 'There was an error saving settings for this guild.';
-				} else {
-					log.debug(`Succesfully set bot prefix for guildID ${msg.channel.guild.id}`);
-					return `Succesfully set command prefix to ${args[0]}`;
-				}
 			} else {
 				log.debug('Bad Syntax. Prefix not set');
 				return 'Please supply one word or character to use as the command prefix';
@@ -148,19 +149,21 @@ var commands = [
 				doc.time = time;
 				doc.channels = [id];
 
-				let result = db.collection('events')
-					.save(doc);
-				if (result.writeError) {
-					log.error(`Issue creating event: ${result.writeError.errmsg}`);
-					bot.createMessage(msg.channel.id, 'There was an error creating the event.');
-				} else if (result.nInserted !== 1) {
-					log.error('Something went wrong creating this event', { result: result });
-					bot.createMessage(msg.channel.id, 'There was an error creating the event.');
-				} else {
-					syncEvents();
-					log.verbose('New event successfully created', { eventDoc: doc });
-					bot.createMessage(msg.channel.id, `Succesfully created event with ID: \`${doc._id}\`. You have been automatically subscibed.`);
-				}
+				db.collection('events')
+					.save(doc)
+					.then(result => {
+						if (result.writeError) {
+							log.error(`Issue creating event: ${result.writeError.errmsg}`);
+							bot.createMessage(msg.channel.id, 'There was an error creating the event.');
+						} else if (result.nInserted !== 1) {
+							log.error('Something went wrong creating this event', { result: result });
+							bot.createMessage(msg.channel.id, 'There was an error creating the event.');
+						} else {
+							syncEvents();
+							log.verbose('New event successfully created', { eventDoc: doc });
+							bot.createMessage(msg.channel.id, `Succesfully created event with ID: \`${doc._id}\`. You have been automatically subscibed.`);
+						}
+					});
 			};
 
 			if (args.join(' ').toLowerCase().includes('--channel')) {
@@ -187,22 +190,23 @@ var commands = [
 		'DeleteEvent',
 		(msg, args) => {
 			timeNow = Math.floor(new Date() / 1000);
-			let result = db.collection('events')
+			db.collection('events')
 				.remove({
 					_id: new Mongo.ObjectID(args[0]),
+				})
+				.then(result => {
+					if (result.hasWriteError()) {
+						log.error(`Issue deleting eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
+						bot.createMessage(msg.channel.id, 'There was an error deleting the event.');
+					} else if (result.nRemoved === 0) {
+						log.error(`Event was not deleted as no event was found with ID: ${args[0]}`);
+						bot.createMessage(msg.channel.id, 'The event with that ID could not be found.');
+					} else {
+						syncEvents();
+						log.verbose(`Succesfully deleted event with ID: ${args[0]}`);
+						bot.createMessage(msg.channel.id, `Succesfully deleted event with ID: \`${args[0]}\``);
+					}
 				});
-
-			if (result.hasWriteError()) {
-				log.error(`Issue deleting eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
-				return 'There was an error deleting the event.';
-			} else if (result.nRemoved === 0) {
-				log.error(`Event was not deleted as no event was found with ID: ${args[0]}`);
-				return 'The event with that ID could not be found.';
-			} else {
-				syncEvents();
-				log.verbose(`Succesfully deleted event with ID: ${args[0]}`);
-				return `Succesfully deleted event with ID: \`${args[0]}\``;
-			}
 		},
 		{
 			aliases: ['RemoveEvent'],
@@ -302,7 +306,7 @@ var commands = [
 		(msg, args) => {
 			let run = (id) => {
 				timeNow = Math.floor(new Date() / 1000);
-				let result = db.collection('events')
+				db.collection('events')
 					.update({
 						_id: new Mongo.ObjectID(args[0]),
 						dead: {
@@ -322,19 +326,20 @@ var commands = [
 						$push: {
 							channels: id,
 						},
+					})
+					.then(result => {
+						if (result.nMatched !== 1) {
+							log.debug(`Could not subscibe user to event (ID: ${args[0]}). Event not found.`);
+							bot.createMessage(msg.channel.id, 'The event with that ID could not be found.');
+						} else if (result.writeError) {
+							log.error(`Issue subscribing user to eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
+							bot.createMessage(msg.channel.id, 'There was an error subscribing you to the event.');
+						} else {
+							syncEvents();
+							log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
+							bot.createMessage(msg.channel.id, `Succesfully unsubscribed from event with ID: \`${args[0]}\``);
+						}
 					});
-
-				if (result.nMatched !== 1) {
-					log.debug(`Could not subscibe user to event (ID: ${args[0]}). Event not found.`);
-					bot.createMessage(msg.channel.id, 'The event with that ID could not be found.');
-				} else if (result.writeError) {
-					log.error(`Issue subscribing user to eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
-					bot.createMessage(msg.channel.id, 'There was an error subscribing you to the event.');
-				} else {
-					syncEvents();
-					log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
-					bot.createMessage(msg.channel.id, `Succesfully unsubscribed from event with ID: \`${args[0]}\``);
-				}
 			};
 
 			if (args.join(' ').toLowerCase().includes('--channel')) {
@@ -358,26 +363,27 @@ var commands = [
 		(msg, args) => {
 			let run = (id) => {
 				timeNow = Math.floor(new Date() / 1000);
-				let result = db.collection('events')
+				db.collection('events')
 					.update({
 						_id: new Mongo.ObjectID(args[0]),
 					}, {
 						$pull: {
 							channels: id,
 						},
+					})
+					.then(result => {
+						if (result.nMatched !== 1) {
+							log.debug(`Could not unsubscibe user from event (ID: ${args[0]}). Event not found.`);
+							bot.createMessage(msg.channel.id, 'The event with that ID could not be found.');
+						} else if (result.writeError) {
+							log.error(`Issue unsubscribing user from eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
+							bot.createMessage(msg.channel.id, 'There was an error unsubscribing you from the event.');
+						} else {
+							syncEvents();
+							log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
+							bot.createMessage(msg.channel.id, `Succesfully unsubscribed from event with ID: \`${args[0]}\``);
+						}
 					});
-
-				if (result.nMatched !== 1) {
-					log.debug(`Could not unsubscibe user from event (ID: ${args[0]}). Event not found.`);
-					bot.createMessage(msg.channel.id, 'The event with that ID could not be found.');
-				} else if (result.writeError) {
-					log.error(`Issue unsubscribing user from eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
-					bot.createMessage(msg.channel.id, 'There was an error unsubscribing you from the event.');
-				} else {
-					syncEvents();
-					log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
-					bot.createMessage(msg.channel.id, `Succesfully unsubscribed from event with ID: \`${args[0]}\``);
-				}
 			};
 
 			if (args.join(' ').toLowerCase().includes('--channel')) {
