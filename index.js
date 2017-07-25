@@ -480,7 +480,7 @@ function initialise() {
 	// Sync the events array every 10 seconds
 	syncEvents();
 	setInterval(syncEvents, 10000);
-	bot.debug('Registering commands');
+	log.debug('Registering commands');
 	for (let i = 0; i < commands.length; i++) {
 		bot.registerCommand(commands[i][0], commands[i][1], commands[i][2]);
 	}
