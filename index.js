@@ -153,7 +153,7 @@ var commands = [
 				} else {
 					syncEvents();
 					log.verbose('New event successfully created', { eventDoc: doc });
-					bot.createMessage(msg.channel.id, `Succesfully created event with ID: ${doc._id}. You have been automatically subscibed.`);
+					bot.createMessage(msg.channel.id, `Succesfully created event with ID: \`${doc._id}\`. You have been automatically subscibed.`);
 				}
 			};
 
@@ -195,7 +195,7 @@ var commands = [
 			} else {
 				syncEvents();
 				log.verbose(`Succesfully deleted event with ID: ${args[0]}`);
-				return `Succesfully deleted event with ID: ${args[0]}`;
+				return `Succesfully deleted event with ID: \`${args[0]}\``;
 			}
 		},
 		{
@@ -257,16 +257,16 @@ var commands = [
 					}
 					let message = '~~~ Event List ~~~\n';
 					for (var i = 0; i < docs.length; i++) {
-						message += `EventID:   ${docs[i]._id}`;
-						message += `Message:   ${docs[i].message}\n`;
-						message += `Time:      ${new Date(docs[i].time * 1000).toUTCString()}\n`;
-						message += `Sub Count: ${docs[i].channels.length}\n`;
+						message += `EventID:   \`${docs[i]._id}\`\n`;
+						message += `Message:   \`${docs[i].message}\`\n`;
+						message += `Time:      \`${new Date(docs[i].time * 1000).toUTCString()}\`\n`;
+						message += `Sub Count: \`${docs[i].channels.length}\`\n`;
 						if (docs[i].recurring) {
-							message += `Reccuring: Every ${docs[i].timer} seconds\n`;
+							message += `Reccuring: Every \`${docs[i].timer}\` seconds\n`;
 						}
 						message += '------\n';
 					}
-					message += `Total Event Count: ${docs.length}`;
+					message += `Total Event Count: \`${docs.length}\``;
 					log.debug(`Succesfully returned ${docs.length} events`);
 					msg.author.getDMChannel().then(channel => {
 						channel.createMessage(message);
@@ -316,7 +316,7 @@ var commands = [
 				} else {
 					syncEvents();
 					log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
-					bot.createMessage(msg.channel.id, `Succesfully unsubscribed from event with ID: ${args[0]}`);
+					bot.createMessage(msg.channel.id, `Succesfully unsubscribed from event with ID: \`${args[0]}\``);
 				}
 			};
 
@@ -359,7 +359,7 @@ var commands = [
 				} else {
 					syncEvents();
 					log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
-					bot.createMessage(msg.channel.id, `Succesfully unsubscribed from event with ID: ${args[0]}`);
+					bot.createMessage(msg.channel.id, `Succesfully unsubscribed from event with ID: \`${args[0]}\``);
 				}
 			};
 
