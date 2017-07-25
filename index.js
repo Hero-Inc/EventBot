@@ -32,10 +32,7 @@ log.debug('Creating commands array');
 var commands = [
 	[
 		'Ping',
-		(msg, args) => {
-			log.debug('[Command] Ping', { msg: msg, args: args });
-			return 'Pong!';
-		},
+		'Pong!',
 		{
 			description: 'Replies "Pong!"',
 		},
@@ -43,7 +40,6 @@ var commands = [
 	[
 		'SetPrefix',
 		(msg, args) => {
-			log.debug('[Command] SetPrefix', { msg: msg, args: args });
 			if (args.length === 1) {
 				let result = db.collection('guildData')
 					.update({
@@ -84,10 +80,7 @@ var commands = [
 	],
 	[
 		'GetLink',
-		(msg, args) => {
-			log.debug('[Command] GetLink', { msg: msg, args: args });
-			return config.inviteLink === undefined || config.inviteLink === '' ? 'Sorry, an invite link has not been configured by the bot owner.' : config.inviteLink;
-		},
+		config.inviteLink === undefined || config.inviteLink === '' ? 'Sorry, an invite link has not been configured by the bot owner.' : config.inviteLink,
 		{
 			aliases: ['Link', 'AddURL'],
 			description: 'Add me to a guild',
@@ -96,10 +89,7 @@ var commands = [
 	],
 	[
 		'Time',
-		(msg, args) => {
-			log.debug('[Command] Time', { msg: msg, args: args });
-			return `Epoch Time: \`${Math.floor(new Date() / 1000)}\`\nUTC Time:   \`${new Date().toUTCString()}\``;
-		},
+		`Epoch Time: \`${Math.floor(new Date() / 1000)}\`\nUTC Time:   \`${new Date().toUTCString()}\``,
 		{
 			aliases: ['GetTime', 'Epoch'],
 			description: 'Get the current Unix Epoch Time',
@@ -109,7 +99,6 @@ var commands = [
 	[
 		'NewEvent',
 		(msg, args) => {
-			log.debug('[Command] NewEvent', { msg: msg, args: args });
 			if (args.length < 3 || args.indexOf('|') < 1) {
 				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
 			}
@@ -179,7 +168,6 @@ var commands = [
 	[
 		'DeleteEvent',
 		(msg, args) => {
-			log.debug('[Command] DeleteEvent', { msg: msg, args: args });
 			timeNow = Math.floor(new Date() / 1000);
 			let result = db.collection('events')
 				.remove({
@@ -213,7 +201,6 @@ var commands = [
 	[
 		'ViewEvents',
 		(msg, args) => {
-			log.debug('[Command] ViewEvents', { msg: msg, args: args });
 			timeNow = Math.floor(new Date() / 1000);
 			let query = {
 				$or: [
@@ -282,7 +269,6 @@ var commands = [
 	[
 		'Subscribe',
 		(msg, args) => {
-			log.debug('[Command] Subscribe', { msg: msg, args: args });
 			let id;
 			if (args.join(' ').toLowerCase().includes('--channel')) {
 				id = msg.channel.id;
@@ -335,7 +321,6 @@ var commands = [
 	[
 		'Unsubscribe',
 		(msg, args) => {
-			log.debug('[Command] Unsubscribe', { msg: msg, args: args });
 			let id;
 			if (args.join(' ').toLowerCase().includes('--channel')) {
 				id = msg.channel.id;
@@ -399,6 +384,9 @@ bot
 	})
 	.on('warn', err => {
 		log.warn(`ERIS Warning`, { ReportedError: err });
+	})
+	.on('messageCreate', msg => {
+		log.debug('Command Recieved', { author: msg.author, msg: msg.content });
 	})
 	.on('ready', () => {
 		// Set the botPrefix on server that have previously used the SetPrefix command
