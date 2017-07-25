@@ -102,55 +102,67 @@ var commands = [
 			if (args.length < 3 || args.indexOf('|') < 1) {
 				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
 			}
-			let id,
-				time,
+			let time,
 				message,
 				timer,
 				doc = {};
-			let index = args.join(' ').toLowerCase().split(' ')[args.length - 1].indexOf('--recurring=');
-			if (index !== -1) {
-				timer = args[args.length - 1].split('=')[1];
-			}
-			for (var i = 0; i < args.length; i++) {
-				if (args[i] === '|') {
-					message.trim();
-					break;
+			let run = (id) => {
+				// Get rucurring timer
+				let index = args.join(' ').toLowerCase().split(' ')[args.length - 1].indexOf('--recurring=');
+				if (index !== -1) {
+					timer = args[args.length - 1].split('=')[1];
 				}
-				message += `${args[i]} `;
-			}
-			time = args[args.indexOf('|') + 1];
+
+				// Get Message
+				for (var i = 0; i < args.length; i++) {
+					if (args[i] === '|') {
+						message.trim();
+						break;
+					}
+					message += `${args[i]} `;
+				}
+
+				// Get time
+				time = args[args.indexOf('|') + 1];
+
+				// Check time and message
+				if (time === undefined || isNaN(time) || message === undefined || message === '') {
+					bot.createMessage(msg.channel.id, '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command');
+				}
+
+				// Check/Set timer
+				if (timer !== undefined && timer < 60) {
+					bot.createMessage(msg.channel.id, 'Recurring events should not occur more than once a minute');
+				} else if (timer !== undefined) {
+					doc.recurring = true;
+					doc.timer = timer;
+				}
+				doc._id = new Mongo.ObjectID();
+				doc.message = message;
+				doc.time = time;
+				doc.channels = [id];
+
+				let result = db.collection('events')
+					.save(doc);
+				if (result.hasWriteError()) {
+					log.error(`Issue creating event: ${result.writeError.errmsg}`);
+					bot.createMessage(msg.channel.id, 'There was an error creating the event.');
+				} else if (result.nInserted !== 1) {
+					log.error('Something went wrong creating this event', { result: result });
+					bot.createMessage(msg.channel.id, 'There was an error creating the event.');
+				} else {
+					syncEvents();
+					log.verbose('New event successfully created', { eventDoc: doc });
+					bot.createMessage(msg.channel.id, `Succesfully created event with ID: ${doc._id}. You have been automatically subscibed.`);
+				}
+			};
+
 			if (args.join(' ').toLowerCase().includes('--channel')) {
-				id = msg.channel.id;
+				run(msg.channel.id);
 			} else {
-				id = msg.author.getDMChannel();
-			}
-
-			if (time === undefined || isNaN(time) || message === undefined || message === '') {
-				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
-			}
-			if (timer !== undefined && timer < 60) {
-				return 'Recurring events should not occur more than once a minute';
-			} else if (timer !== undefined) {
-				doc.recurring = true;
-				doc.timer = timer;
-			}
-			doc._id = new Mongo.ObjectID();
-			doc.message = message;
-			doc.time = time;
-			doc.channels = [id];
-
-			let result = db.collection('events')
-				.save(doc);
-			if (result.hasWriteError()) {
-				log.error(`Issue creating event: ${result.writeError.errmsg}`);
-				return 'There was an error creating the event.';
-			} else if (result.nInserted !== 1) {
-				log.error('Something went wrong creating this event', { result: result });
-				return 'There was an error creating the event.';
-			} else {
-				syncEvents();
-				log.verbose('New event successfully created', { eventDoc: doc });
-				return `Succesfully created event with ID: ${doc._id}. You have been automatically subscibed.`;
+				msg.author.getDMChannel().then(channel => {
+					run(channel.id);
+				});
 			}
 		},
 		{
@@ -256,7 +268,9 @@ var commands = [
 					}
 					message += `Total Event Count: ${docs.length}`;
 					log.debug(`Succesfully returned ${docs.length} events`);
-					bot.createMessage(msg.author.getDMChannel(), message);
+					msg.author.getDMChannel().then(channel => {
+						channel.createMessage(channel, message);
+					});
 				});
 		},
 		{
@@ -269,45 +283,49 @@ var commands = [
 	[
 		'Subscribe',
 		(msg, args) => {
-			let id;
-			if (args.join(' ').toLowerCase().includes('--channel')) {
-				id = msg.channel.id;
-			} else {
-				id = msg.author.getDMChannel();
-			}
-			timeNow = Math.floor(new Date() / 1000);
-			let result = db.collection('events')
-				.update({
-					_id: new Mongo.ObjectID(args[0]),
-					dead: {
-						$ne: true,
-					},
-					$or: [
-						{
-							time: {
-								$gt: timeNow,
+			let run = (id) => {
+				timeNow = Math.floor(new Date() / 1000);
+				let result = db.collection('events')
+					.update({
+						_id: new Mongo.ObjectID(args[0]),
+						dead: {
+							$ne: true,
+						},
+						$or: [
+							{
+								time: {
+									$gt: timeNow,
+								},
 							},
+							{
+								recurring: true,
+							},
+						],
+					}, {
+						$push: {
+							channels: id,
 						},
-						{
-							recurring: true,
-						},
-					],
-				}, {
-					$push: {
-						channels: id,
-					},
-				});
+					});
 
-			if (result.nMatched !== 1) {
-				log.debug(`Could not subscibe user to event (ID: ${args[0]}). Event not found.`);
-				return 'The event with that ID could not be found.';
-			} else if (result.writeError) {
-				log.error(`Issue subscribing user to eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
-				return 'There was an error subscribing you to the event.';
+				if (result.nMatched !== 1) {
+					log.debug(`Could not subscibe user to event (ID: ${args[0]}). Event not found.`);
+					bot.createMessage(msg.channel.id, 'The event with that ID could not be found.');
+				} else if (result.writeError) {
+					log.error(`Issue subscribing user to eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
+					bot.createMessage(msg.channel.id, 'There was an error subscribing you to the event.');
+				} else {
+					syncEvents();
+					log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
+					bot.createMessage(msg.channel.id, `Succesfully unsubscribed from event with ID: ${args[0]}`);
+				}
+			};
+
+			if (args.join(' ').toLowerCase().includes('--channel')) {
+				run(msg.channel.id);
 			} else {
-				syncEvents();
-				log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
-				return `Succesfully unsubscribed from event with ID: ${args[0]}`;
+				msg.author.getDMChannel().then(channel => {
+					run(channel.id);
+				});
 			}
 		},
 		{
@@ -321,32 +339,36 @@ var commands = [
 	[
 		'Unsubscribe',
 		(msg, args) => {
-			let id;
-			if (args.join(' ').toLowerCase().includes('--channel')) {
-				id = msg.channel.id;
-			} else {
-				id = msg.author.getDMChannel();
-			}
-			timeNow = Math.floor(new Date() / 1000);
-			let result = db.collection('events')
-				.update({
-					_id: new Mongo.ObjectID(args[0]),
-				}, {
-					$pull: {
-						channels: id,
-					},
-				});
+			let run = (id) => {
+				timeNow = Math.floor(new Date() / 1000);
+				let result = db.collection('events')
+					.update({
+						_id: new Mongo.ObjectID(args[0]),
+					}, {
+						$pull: {
+							channels: id,
+						},
+					});
 
-			if (result.nMatched !== 1) {
-				log.debug(`Could not unsubscibe user from event (ID: ${args[0]}). Event not found.`);
-				return 'The event with that ID could not be found.';
-			} else if (result.writeError) {
-				log.error(`Issue unsubscribing user from eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
-				return 'There was an error unsubscribing you from the event.';
+				if (result.nMatched !== 1) {
+					log.debug(`Could not unsubscibe user from event (ID: ${args[0]}). Event not found.`);
+					bot.createMessage(msg.channel.id, 'The event with that ID could not be found.');
+				} else if (result.writeError) {
+					log.error(`Issue unsubscribing user from eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
+					bot.createMessage(msg.channel.id, 'There was an error unsubscribing you from the event.');
+				} else {
+					syncEvents();
+					log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
+					bot.createMessage(msg.channel.id, `Succesfully unsubscribed from event with ID: ${args[0]}`);
+				}
+			};
+
+			if (args.join(' ').toLowerCase().includes('--channel')) {
+				run(msg.channel.id);
 			} else {
-				syncEvents();
-				log.debug(`Subscribed user (ID: ${msg.author.id}) to event (ID: ${args[0]})`);
-				return `Succesfully unsubscribed from event with ID: ${args[0]}`;
+				msg.author.getDMChannel().then(channel => {
+					run(channel.id);
+				});
 			}
 		},
 		{
