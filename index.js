@@ -426,7 +426,7 @@ function syncEvents() {
 				{
 					time: {
 						$gte: timeNow,
-						$lt: timeNow + 30,
+						$lt: timeNow + 60,
 					},
 				},
 				{
@@ -468,7 +468,7 @@ function initialise() {
 	log.verbose('Initialising bot instance');
 	// Sync the events array every 10 seconds
 	syncEvents();
-	setInterval(syncEvents, 10000);
+	setInterval(syncEvents, 30000);
 	log.debug('Registering commands');
 	for (let i = 0; i < commands.length; i++) {
 		bot.registerCommand(commands[i][0], commands[i][1], commands[i][2]);
