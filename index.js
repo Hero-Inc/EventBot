@@ -67,7 +67,7 @@ var commands = [
 			}
 		},
 		{
-			aliases: ['Prefix', 'cmdPrefix'],
+			aliases: ['Prefix', 'cmdPrefix', '~'],
 			description: 'Set the command prefix',
 			fullDescription: 'Sets the prefix used before commands for this bot, only on this guild.',
 			usage: 'SetPrefix <prefix>',
@@ -84,7 +84,7 @@ var commands = [
 		'GetLink',
 		config.inviteLink === undefined || config.inviteLink === '' ? 'Sorry, an invite link has not been configured by the bot owner.' : config.inviteLink,
 		{
-			aliases: ['Link', 'AddURL'],
+			aliases: ['Link', 'AddURL', '&'],
 			description: 'Add me to a guild',
 			fullDescription: 'Return a link which you can use to add me to your own guild.',
 		},
@@ -93,7 +93,7 @@ var commands = [
 		'Time',
 		`Epoch Time: \`${Math.floor(new Date() / 1000)}\`\nUTC Time:   \`${new Date().toUTCString()}\``,
 		{
-			aliases: ['GetTime', 'Epoch'],
+			aliases: ['GetTime', 'Epoch', '#'],
 			description: 'Get the current Unix Epoch Time',
 			fullDescription: 'Return a number which represents the number of seconds since Jan 1st 1970 UTC along with the human readable form of that number.',
 		},
@@ -176,9 +176,9 @@ var commands = [
 			}
 		},
 		{
-			aliases: ['CreateEvent'],
+			aliases: ['CreateEvent', 'MakeEvent', '+'],
 			description: 'Create a new event',
-			fullDescription: 'Create an event which will send a reminder to all subscribed users at a specified EpochTime.\nIncluding the recurring flag will make the event occur every <ammount> of seconds from EpochTime.\nIncluding the "--channel" flag will autosubscribe the channel not the user.\nIncluding the "--hidden" flag will hide the event from the viewEvents command (Take note of the ID if you want to do anything else with this event).',
+			fullDescription: 'Create an event which will send a reminder to all subscribed users at a specified EpochTime.\nIncluding the "--recurring=<someNumber>" flag will make the event occur every <someNumber> of seconds from EpochTime.\nIncluding the "--channel" flag will autosubscribe the channel not the user.\nIncluding the "--hidden" flag will hide the event from non-Admins in the viewEvents command.',
 			usage: 'NewEvent <Message> | <EpochTime> [--recurring=<SecondsBetweenEvents>] [--channel] [--hidden]',
 			argsRequired: true,
 			requirements: {
@@ -210,7 +210,7 @@ var commands = [
 				});
 		},
 		{
-			aliases: ['RemoveEvent'],
+			aliases: ['RemoveEvent', 'DestroyEvent', '-'],
 			description: 'Delete an event',
 			fullDescription: 'Delete an event to remove it from the database and stop all subscribers recieving updates.',
 			usage: 'DeleteEvent <EventID>',
@@ -274,7 +274,7 @@ var commands = [
 						bot.createMessage(msg.channel.id, `[ERROR] Unable to access database`);
 						return log.error(`Unable to access database to view events`, { ReportedError: err });
 					}
-					let message = '~~~ Event List ~~~\n';
+					let message = '~ ~ ~ Event List ~ ~ ~\n';
 					for (let i = 0; i < docs.length; i++) {
 						message += `EventID:   \`${docs[i]._id}\`\n`;
 						message += `Message:   \`${docs[i].message}\`\n`;
@@ -296,10 +296,10 @@ var commands = [
 				});
 		},
 		{
-			aliases: ['ListEvents'],
+			aliases: ['ListEvents', 'EventList', 'ShowEvents', '='],
 			description: 'List all available events',
 			fullDescription: 'Produce a list of all events which can be subscribed to.\nUsing the "--old" or "--inactive" flags causes the results to show those events also (This may produce a very large list).\nUsing the "--subscribed" flag only shows events to which you are subscribed.\nUsing the "--channel" flag displays only events the current channel is subscribed to.\nUsing the "--hidden" flag and having admin rights also shows hidden events.',
-			usage: 'ViewEvents [--old] [--inactive] [--subscribed] [--channel]',
+			usage: 'ViewEvents [--old] [--inactive] [--subscribed] [--channel] [--hidden]',
 		},
 	],
 	[
@@ -352,9 +352,9 @@ var commands = [
 			}
 		},
 		{
-			aliases: ['EventAlert'],
+			aliases: ['EventAlert', 'AlertEvent', 'NotifyEvent', '>'],
 			description: 'Subscribe to an event',
-			fullDescription: 'Subscribe to recieve notifications from a specified event.',
+			fullDescription: 'Subscribe to recieve notifications from a specified event.\nIncluding the "--channel" flag subscibes the current channel you are in instead of your user.',
 			usage: 'Subscribe <eventID> [--channel]',
 			argsRequired: true,
 		},
@@ -396,9 +396,9 @@ var commands = [
 			}
 		},
 		{
-			aliases: ['NoNotifyEvent'],
+			aliases: ['NoNotifyEvent', 'StopEvent', '<'],
 			description: 'Unsubscribe to an event',
-			fullDescription: 'Unsubscribe to stop recieving notifications from a specified event.',
+			fullDescription: 'Unsubscribe to stop recieving notifications from a specified event.\nIncluding the "--channel" flag unsubscibes the current channel you are in instead of your user.',
 			usage: 'Unsubscribe <eventID> [--channel]',
 			argsRequired: true,
 		},
