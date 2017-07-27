@@ -54,7 +54,9 @@ var commands = [
 					})
 					.then(result => {
 						if (result.writeError) {
-							log.error(`Issue setting bot prefix for guildID ${msg.channel.guild.id}`, { ReportedError: result.writeError.errmsg });
+							log.error(`Issue setting bot prefix for guildID ${msg.channel.guild.id}`, {
+								ReportedError: result.writeError.errmsg,
+							});
 							bot.createMessage(msg.channel.id, 'There was an error saving settings for this guild.');
 						} else {
 							log.debug(`Succesfully set bot prefix for guildID ${msg.channel.guild.id}`);
@@ -111,7 +113,8 @@ var commands = [
 			let run = (id) => {
 				// Get rucurring timer
 				for (let i = 0; i < args.length; i++) {
-					if (args[i].toLowerCase().includes('--recurring')) {
+					if (args[i].toLowerCase()
+						.includes('--recurring')) {
 						timer = parseInt(args[i].split('=')[1]);
 					}
 				}
@@ -144,7 +147,9 @@ var commands = [
 						doc.timer = timer;
 					}
 				}
-				doc.hidden = args.join(' ').toLowerCase().includes('--hidden');
+				doc.hidden = args.join(' ')
+					.toLowerCase()
+					.includes('--hidden');
 				doc._id = new Mongo.ObjectID();
 				doc.message = message;
 				doc.time = time;
@@ -157,22 +162,29 @@ var commands = [
 							log.error(`Issue creating event: ${result.writeError.errmsg}`);
 							bot.createMessage(msg.channel.id, 'There was an error creating the event.');
 						} else if (result.nInserted !== 1) {
-							log.error('Something went wrong creating this event', { result: result });
+							log.error('Something went wrong creating this event', {
+								result: result,
+							});
 							bot.createMessage(msg.channel.id, 'There was an error creating the event.');
 						} else {
 							syncEvents();
-							log.verbose('New event successfully created', { eventDoc: doc });
+							log.verbose('New event successfully created', {
+								eventDoc: doc,
+							});
 							bot.createMessage(msg.channel.id, `Succesfully created event with ID: \`${doc._id}\`. You have been automatically subscibed.`);
 						}
 					});
 			};
 
-			if (args.join(' ').toLowerCase().includes('--channel')) {
+			if (args.join(' ')
+				.toLowerCase()
+				.includes('--channel')) {
 				run(msg.channel.id);
 			} else {
-				msg.author.getDMChannel().then(channel => {
-					run(channel.id);
-				});
+				msg.author.getDMChannel()
+					.then(channel => {
+						run(channel.id);
+					});
 			}
 		},
 		{
@@ -197,7 +209,9 @@ var commands = [
 				})
 				.then(result => {
 					if (result.hasWriteError()) {
-						log.error(`Issue deleting eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
+						log.error(`Issue deleting eventID ${args[0]}`, {
+							ReportedError: result.writeError.errmsg,
+						});
 						bot.createMessage(msg.channel.id, 'There was an error deleting the event.');
 					} else if (result.nRemoved === 0) {
 						log.error(`Event was not deleted as no event was found with ID: ${args[0]}`);
@@ -239,40 +253,56 @@ var commands = [
 			};
 			// Build the query from included flags
 			log.silly('Building event query');
-			if (args.join(' ').toLowerCase().includes('--subscribed')) {
+			if (args.join(' ')
+				.toLowerCase()
+				.includes('--subscribed')) {
 				query.channels = msg.author.getDMChannel();
 			}
-			if (args.join(' ').toLowerCase().includes('--channel')) {
+			if (args.join(' ')
+				.toLowerCase()
+				.includes('--channel')) {
 				query.channels = msg.channel.id;
 			}
-			if (!args.join(' ').toLowerCase().includes('--hidden') || !(config.adminUsers.includes(msg.author.id) || config.adminRoles.some((element) => {
-				if (msg.member) {
-					return msg.member.roles.includes(element);
-				}
-				return false;
-			}))) {
-				query.hidden = { $ne: true };
+			if (!args.join(' ')
+				.toLowerCase()
+				.includes('--hidden') || !(config.adminUsers.includes(msg.author.id) || config.adminRoles.some((element) => {
+					if (msg.member) {
+						return msg.member.roles.includes(element);
+					}
+					return false;
+				}))) {
+				query.hidden = {
+					$ne: true,
+				};
 			}
-			if (args.join(' ').toLowerCase().includes('--old')) {
+			if (args.join(' ')
+				.toLowerCase()
+				.includes('--old')) {
 				query.$or.push({
 					time: {
 						$lte: timeNow,
 					},
 				});
 			}
-			if (!args.join(' ').toLowerCase().includes('--inactive')) {
+			if (!args.join(' ')
+				.toLowerCase()
+				.includes('--inactive')) {
 				query.dead = {
 					$ne: true,
 				};
 			}
-			log.debug('Event query created', { query: query });
+			log.debug('Event query created', {
+				query: query,
+			});
 			// Run the query
 			db.collection('events')
 				.find(query)
 				.toArray((err, docs) => {
 					if (err) {
 						bot.createMessage(msg.channel.id, `[ERROR] Unable to access database`);
-						return log.error(`Unable to access database to view events`, { ReportedError: err });
+						return log.error(`Unable to access database to view events`, {
+							ReportedError: err,
+						});
 					}
 					let message = '~ ~ ~ Event List ~ ~ ~\n';
 					for (let i = 0; i < docs.length; i++) {
@@ -290,9 +320,10 @@ var commands = [
 					}
 					message += `Total Event Count: \`${docs.length}\``;
 					log.debug(`Succesfully returned ${docs.length} events`);
-					msg.author.getDMChannel().then(channel => {
-						channel.createMessage(message);
-					});
+					msg.author.getDMChannel()
+						.then(channel => {
+							channel.createMessage(message);
+						});
 				});
 		},
 		{
@@ -333,7 +364,9 @@ var commands = [
 							log.debug(`Could not subscibe user to event (ID: ${args[0]}). Event not found.`);
 							bot.createMessage(msg.channel.id, 'The event with that ID could not be found.');
 						} else if (result.writeError) {
-							log.error(`Issue subscribing user to eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
+							log.error(`Issue subscribing user to eventID ${args[0]}`, {
+								ReportedError: result.writeError.errmsg,
+							});
 							bot.createMessage(msg.channel.id, 'There was an error subscribing you to the event.');
 						} else {
 							syncEvents();
@@ -343,12 +376,15 @@ var commands = [
 					});
 			};
 
-			if (args.join(' ').toLowerCase().includes('--channel')) {
+			if (args.join(' ')
+				.toLowerCase()
+				.includes('--channel')) {
 				run(msg.channel.id);
 			} else {
-				msg.author.getDMChannel().then(channel => {
-					run(channel.id);
-				});
+				msg.author.getDMChannel()
+					.then(channel => {
+						run(channel.id);
+					});
 			}
 		},
 		{
@@ -377,7 +413,9 @@ var commands = [
 							log.debug(`Could not unsubscibe user from event (ID: ${args[0]}). Event not found.`);
 							bot.createMessage(msg.channel.id, 'The event with that ID could not be found.');
 						} else if (result.writeError) {
-							log.error(`Issue unsubscribing user from eventID ${args[0]}`, { ReportedError: result.writeError.errmsg });
+							log.error(`Issue unsubscribing user from eventID ${args[0]}`, {
+								ReportedError: result.writeError.errmsg,
+							});
 							bot.createMessage(msg.channel.id, 'There was an error unsubscribing you from the event.');
 						} else {
 							syncEvents();
@@ -387,12 +425,15 @@ var commands = [
 					});
 			};
 
-			if (args.join(' ').toLowerCase().includes('--channel')) {
+			if (args.join(' ')
+				.toLowerCase()
+				.includes('--channel')) {
 				run(msg.channel.id);
 			} else {
-				msg.author.getDMChannel().then(channel => {
-					run(channel.id);
-				});
+				msg.author.getDMChannel()
+					.then(channel => {
+						run(channel.id);
+					});
 			}
 		},
 		{
@@ -426,14 +467,21 @@ var bot = new Discord.CommandClient(
 log.debug('Creating bot event listeners');
 bot
 	.on('error', err => {
-		log.error(`ERIS Error`, { ReportedError: err });
+		log.error(`ERIS Error`, {
+			ReportedError: err,
+		});
 	})
 	.on('warn', err => {
-		log.warn(`ERIS Warning`, { ReportedError: err });
+		log.warn(`ERIS Warning`, {
+			ReportedError: err,
+		});
 	})
 	.on('messageCreate', msg => {
 		if (msg.command) {
-			log.verbose('Command Recieved', { author: `"${msg.author.username}#${msg.author.discriminator}"`, msg: msg.content });
+			log.verbose('Command Recieved', {
+				author: `"${msg.author.username}#${msg.author.discriminator}"`,
+				msg: msg.content,
+			});
 		}
 	})
 	.on('ready', () => {
@@ -447,7 +495,9 @@ bot
 			})
 			.toArray((err, data) => {
 				if (err) {
-					return log.error(`Failed to retrieve Guild Data from database. Prefixes not set.`, { ReportedError: err });
+					return log.error(`Failed to retrieve Guild Data from database. Prefixes not set.`, {
+						ReportedError: err,
+					});
 				}
 				for (let i = 0; i < data.length; i++) {
 					bot.registerGuildPrefix(data[i]._id, data[i].prefix);
@@ -482,7 +532,9 @@ function syncEvents() {
 		})
 		.toArray((err, docs) => {
 			if (err) {
-				return log.error(`Unable to sync events with database`, { ReportedError: err });
+				return log.error(`Unable to sync events with database`, {
+					ReportedError: err,
+				});
 			}
 			events = docs;
 			log.silly('Events succesfully synced to local array');
@@ -523,20 +575,28 @@ function initialise() {
 	bot.connect();
 }
 
-log.verbose('Connecting to MongoDB', { link: config.connectionString });
+log.verbose('Connecting to MongoDB', {
+	link: config.connectionString,
+});
 Mongo.MongoClient.connect(config.connectionString, (err, database) => {
 	if (err) {
-		log.error('MongoDB connection failed. Retrying ...', { ReportedError: err });
+		log.error('MongoDB connection failed. Retrying ...', {
+			ReportedError: err,
+		});
 		// Wait 3 seconds to try again
 		setTimeout(
 			Mongo.MongoClient.connect.bind(null, config.connectionString, (err2, database2) => {
 				if (err) {
-					log.error('MongoDB connection failed. Retrying ...', { ReportedError: err2 });
+					log.error('MongoDB connection failed. Retrying ...', {
+						ReportedError: err2,
+					});
 					// Wait 3 seconds to try again
 					setTimeout(
 						Mongo.MongoClient.connect.bind(null, config.connectionString, (err3, database3) => {
 							if (err) {
-								return log.error('MongoDB connection failed. Please check connectionString in config and try again.', { ReportedError: err3 });
+								return log.error('MongoDB connection failed. Please check connectionString in config and try again.', {
+									ReportedError: err3,
+								});
 							}
 							log.verbose('Connected to Mongodb');
 							db = database3;
