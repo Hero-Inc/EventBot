@@ -444,6 +444,18 @@ var commands = [
 			argsRequired: true,
 		},
 	],
+	[
+		'Shutdown',
+		process.kill(process.pid, 'SIGINT'),
+		{
+			aliases: ['kill', 'x-x'],
+			description: 'Shutdown the bot',
+			fullDescription: 'Stops the bot process.',
+			requirements: {
+				userIDs: [config.botOwner],
+			},
+		},
+	],
 ];
 
 log.debug('Creating bot');
@@ -564,6 +576,10 @@ function checkEvents() {
 
 function initialise() {
 	log.verbose('Initialising bot instance');
+	process.on('SIGINT', () => {
+		db.close();
+		process.exit();
+	});
 	// Sync the events array every 10 seconds
 	syncEvents();
 	setInterval(syncEvents, 30000);
