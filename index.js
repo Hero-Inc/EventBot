@@ -10,13 +10,14 @@ var log = new Winston.Logger({
 	transports: [
 		new Winston.transports.Console({
 			handleExceptions: true,
+			level: config.consoleDebugLevel === undefined ? 'info' : config.consoleDebugLevel,
 		}),
 		new Winston.transports.File({
 			filename: './trahearne.log',
 			handleExceptions: true,
+			level: config.fileDebugLevel === undefined ? 'debug' : config.fileDebugLevel,
 		}),
 	],
-	level: config.debugLevel === undefined ? 'info' : config.debugLevel,
 	exitOnError: false,
 });
 
@@ -116,7 +117,7 @@ var commands = [
 				}
 
 				// Get Message
-				for (var i = 0; i < args.length; i++) {
+				for (let i = 0; i < args.length; i++) {
 					if (args[i] === '|') {
 						message = message.trim();
 						break;
@@ -274,7 +275,7 @@ var commands = [
 						return log.error(`Unable to access database to view events`, { ReportedError: err });
 					}
 					let message = '~~~ Event List ~~~\n';
-					for (var i = 0; i < docs.length; i++) {
+					for (let i = 0; i < docs.length; i++) {
 						message += `EventID:   \`${docs[i]._id}\`\n`;
 						message += `Message:   \`${docs[i].message}\`\n`;
 						message += `Time:      \`${new Date(docs[i].time * 1000).toUTCString()}\`\n`;
@@ -448,7 +449,7 @@ bot
 				if (err) {
 					return log.error(`Failed to retrieve Guild Data from database. Prefixes not set.`, { ReportedError: err });
 				}
-				for (var i = 0; i < data.length; i++) {
+				for (let i = 0; i < data.length; i++) {
 					bot.registerGuildPrefix(data[i]._id, data[i].prefix);
 				}
 				log.debug('Prefixes set');
@@ -460,7 +461,7 @@ bot
 
 // Update the local array of events with upcoming events so we don't query every second
 function syncEvents() {
-	log.debug('Syncing events to local array');
+	log.silly('Syncing events to local array');
 	timeNow = Math.floor(new Date() / 1000);
 	db.collection('events')
 		.find({
@@ -484,7 +485,7 @@ function syncEvents() {
 				return log.error(`Unable to sync events with database`, { ReportedError: err });
 			}
 			events = docs;
-			log.debug('Events succesfully synced to local array');
+			log.silly('Events succesfully synced to local array');
 		});
 }
 
