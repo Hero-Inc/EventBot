@@ -446,7 +446,10 @@ var commands = [
 	],
 	[
 		'Shutdown',
-		process.kill(process.pid, 'SIGINT'),
+		(msg, args) => {
+			bot.disconnect();
+			process.kill(process.pid, 'SIGINT');
+		},
 		{
 			aliases: ['kill', 'x-x'],
 			description: 'Shutdown the bot',
