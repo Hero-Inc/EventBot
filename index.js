@@ -356,7 +356,9 @@ var commands = [
 								},
 							},
 							{
-								recurring: true,
+								timer: {
+									$ne: null,
+								},
 							},
 						],
 					}, {
@@ -570,7 +572,7 @@ function checkEvents() {
 	for (let i = 0; i < events.length; i++) {
 		// See if event has triggered
 		let e = events[i];
-		if (!e.recurring && e.time === timeNow) {
+		if (e.timer === undefined && e.time === timeNow) {
 			log.debug('Event activated', e);
 			for (let j = 0; j < e.channels.length; j++) {
 				bot.createMessage(e.channels[j], e.message);
