@@ -13,7 +13,7 @@ var log = new Winston.Logger({
 			level: config.consoleDebugLevel === undefined ? 'info' : config.consoleDebugLevel,
 		}),
 		new Winston.transports.File({
-			filename: './trahearne.log',
+			filename: '../logs/eventBot.log',
 			handleExceptions: true,
 			level: config.fileDebugLevel === undefined ? 'debug' : config.fileDebugLevel,
 		}),
@@ -177,6 +177,7 @@ var commands = [
 					if (docs !== 0) {
 						return bot.createMessage(msg.channel.id, 'An event with that ID already exists.');
 					}
+					bot.sendChannelTyping(msg.channel.id);
 					if (args.join(' ')
 						.toLowerCase()
 						.includes('--channel')) {
@@ -309,19 +310,16 @@ var commands = [
 						});
 					}
 					let message = '~ ~ ~ Event List ~ ~ ~\n';
+					message += 'Key:\n';
+					message += '⏪ = Event already occured once';
+					message += 'x = Event now inactive';
+					message += '# = Event is recurring';
+					message += '* = Event is hidden';
+					message += '------';
 					for (let i = 0; i < docs.length; i++) {
-						let recurring = docs[i].timer !== undefined;
-						message += `EventID:   \`${docs[i]._id}\`\n`;
-						message += `Message:   \`${docs[i].message}\`\n`;
-						message += `Time:      \`${new Date(docs[i].time * 1000).toUTCString()}\`\n`;
-						message += `Sub Count: \`${docs[i].channels.length}\`\n`;
-						if (docs[i].hidden) {
-							message += `Hidden:    \`TRUE\`\n`;
-						}
-						if (recurring) {
-							message += `Reccuring: Every \`${docs[i].timer}\` seconds\n`;
-						}
-						message += '------\n';
+						message += `EventID: \`${docs[i]._id}\`\n`;
+						message += `Details: \`${docs[i].time < Math.floor(new Date() / 1000) ? '⏪' : ''}${docs[i].dead ? 'x' : ''}${docs[i].timer !== undefined ? '#' : ''}${docs[i].hidden ? '*' : 'sdf'}`;
+						message += '------';
 					}
 					message += `Total Event Count: \`${docs.length}\``;
 					log.debug(`Succesfully returned ${docs.length} events`);
@@ -336,6 +334,58 @@ var commands = [
 			description: 'List all available events',
 			fullDescription: 'Produce a list of all events which can be subscribed to.\nUsing the "--old" or "--inactive" flags causes the results to show those events also (This may produce a very large list).\nUsing the "--subscribed" flag only shows events to which you are subscribed.\nUsing the "--channel" flag displays only events the current channel is subscribed to.\nUsing the "--hidden" flag and having admin rights also shows hidden events.',
 			usage: 'ViewEvents [--old] [--inactive] [--subscribed] [--channel] [--hidden]',
+		},
+	],
+	[
+		'EventDetails',
+		(msg, args) => {
+			db.collection('events')
+				.find({
+					_id: args[0].toLowerCase(),
+				})
+				.toArray((err, docs) => {
+					if (err) {
+						bot.createMessage(msg.channel.id, `[ERROR] Unable to access database`);
+						return log.error(`Unable to access database to view events`, {
+							ReportedError: err,
+						});
+					}
+					if (docs.length !== 1) {
+						return bot.createMessage(msg.channel.id, 'The event with that ID could not be found.');
+					}
+					if (docs[0].hidden && !(config.adminUsers.includes(msg.author.id) || config.adminRoles.some((element) => {
+						if (msg.member) {
+							return msg.member.roles.includes(element);
+						}
+						return false;
+					}))) {
+						return bot.createMessage(msg.channel.id, 'Only admins can view data of hidden events.');
+					}
+					let message = '';
+					let recurring = docs[0].timer !== undefined;
+					message += `EventID:   \`${docs[0]._id}\`\n`;
+					message += `Message:   \`${docs[0].message}\`\n`;
+					message += `Time:      \`${new Date(docs[0].time * 1000).toUTCString()}\`\n`;
+					message += `Sub Count: \`${docs[0].channels.length}\`\n`;
+					if (docs[0].hidden) {
+						message += `Hidden:    \`TRUE\`\n`;
+					}
+					if (recurring) {
+						message += `Reccuring: Every \`${docs[0].timer}\` seconds\n`;
+					}
+					log.debug(`Succesfully returned eventData for event(ID: ${docs[0]._id})`);
+					msg.author.getDMChannel()
+						.then(channel => {
+							channel.createMessage(message);
+						});
+				});
+		},
+		{
+			aliases: ['Details', 'EventData', 'EventInfo', '!'],
+			description: 'Show information about a specified event',
+			argsRequired: true,
+			fullDescription: 'Display the information about an event, including the message, time of event, recurrance timer and subsciber count.',
+			usage: 'EventDetails <EventID>',
 		},
 	],
 	[
