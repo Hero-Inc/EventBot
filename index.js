@@ -103,58 +103,45 @@ var commands = [
 	[
 		'NewEvent',
 		(msg, args) => {
-			if (args.length < 3 || args.indexOf('|') < 1) {
+			let id = '',
+				message = '',
+				time,
+				timer,
+				doc = {},
+				newArgs = args.join(' ').split('"').length;
+
+			if (args.length < 3 || newArgs.length !== 3) {
 				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
 			}
-			let time,
-				message = '',
-				timer,
-				doc = {};
-			let run = (id) => {
-				// Get rucurring timer
-				for (let i = 0; i < args.length; i++) {
-					if (args[i].toLowerCase()
-						.includes('--recurring')) {
-						timer = parseInt(args[i].split('=')[1]);
-					}
+
+			id = args[0].toLowerCase();
+			message = newArgs[1];
+			time = parseInt(newArgs[2].trim().split(' ')[0]);
+			for (let i = 0; i < args.length; i++) {
+				if (args[i].toLowerCase()
+					.includes('--recurring')) {
+					timer = parseInt(args[i].split('=')[1]);
 				}
+			}
 
-				// Get Message
-				for (let i = 0; i < args.length; i++) {
-					if (args[i] === '|') {
-						message = message.trim();
-						break;
-					}
-					message += `${args[i]} `;
-				}
+			if (id === undefined || message === undefined || message === '' || isNaN(time) || (timer !== undefined && isNaN(timer))) {
+				return '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command';
+			} else if (timer !== undefined && timer < 60) {
+				return '[ERROR] Recurring events should not occur more than once a minute';
+			}
+			doc = {
+				_id: id,
+				message: message,
+				time: time,
+				hidden: newArgs[2].toLowerCase().inludes('--hidden'),
+				channels: [],
+			};
+			if (timer !== undefined) {
+				doc.timer = timer;
+			}
 
-				// Get time
-				time = parseInt(args[args.indexOf('|') + 1]);
-
-				// Check time and message
-				if (time === undefined || isNaN(time) || message === undefined || message === '') {
-					bot.createMessage(msg.channel.id, '[ERROR] Syntax issue please use "Help NewEvent" to learn how to use this command');
-				}
-
-				// Check/Set timer
-				if (timer !== undefined) {
-					if (isNaN(timer)) {
-						console.log('recurring events should be numbers');
-					} else if (timer < 60) {
-						return bot.createMessage(msg.channel.id, 'Recurring events should not occur more than once a minute');
-					} else {
-						doc.recurring = true;
-						doc.timer = timer;
-					}
-				}
-				doc.hidden = args.join(' ')
-					.toLowerCase()
-					.includes('--hidden');
-				doc._id = new Mongo.ObjectID();
-				doc.message = message;
-				doc.time = time;
-				doc.channels = [id];
-
+			let run = (channelID) => {
+				doc.channels.push(channelID);
 				db.collection('events')
 					.save(doc)
 					.then(result => {
@@ -176,22 +163,37 @@ var commands = [
 					});
 			};
 
-			if (args.join(' ')
-				.toLowerCase()
-				.includes('--channel')) {
-				run(msg.channel.id);
-			} else {
-				msg.author.getDMChannel()
-					.then(channel => {
-						run(channel.id);
-					});
-			}
+			log.debug(`Checking if event(ID: ${id}) exists`);
+			db.collection('events')
+				.find({
+					_id: id,
+				}).toArray((err, docs) => {
+					if (err) {
+						log.error('Something went wrong searching event database', {
+							ReportedError: err,
+						});
+						return bot.createMessage(msg.channel.id, 'There was an error creating the event.');
+					}
+					if (docs !== 0) {
+						return bot.createMessage(msg.channel.id, 'An event with that ID already exists.');
+					}
+					if (args.join(' ')
+						.toLowerCase()
+						.includes('--channel')) {
+						run(msg.channel.id);
+					} else {
+						msg.author.getDMChannel()
+							.then(channel => {
+								run(channel.id);
+							});
+					}
+				});
 		},
 		{
 			aliases: ['CreateEvent', 'MakeEvent', '+'],
 			description: 'Create a new event',
 			fullDescription: 'Create an event which will send a reminder to all subscribed users at a specified EpochTime.\nIncluding the "--recurring=<someNumber>" flag will make the event occur every <someNumber> of seconds from EpochTime.\nIncluding the "--channel" flag will autosubscribe the channel not the user.\nIncluding the "--hidden" flag will hide the event from non-Admins in the viewEvents command.',
-			usage: 'NewEvent <Message> | <EpochTime> [--recurring=<SecondsBetweenEvents>] [--channel] [--hidden]',
+			usage: 'NewEvent <UniqueID> "<Message>" <EpochTime> [--recurring=<SecondsBetweenEvents>] [--channel] [--hidden]',
 			argsRequired: true,
 			requirements: {
 				userIDs: config.adminUsers,
@@ -205,7 +207,7 @@ var commands = [
 			timeNow = Math.floor(new Date() / 1000);
 			db.collection('events')
 				.remove({
-					_id: new Mongo.ObjectID(args[0]),
+					_id: args[0].toLowerCase(),
 				})
 				.then(result => {
 					if (result.hasWriteError()) {
@@ -242,7 +244,9 @@ var commands = [
 			let query = {
 				$or: [
 					{
-						recurring: true,
+						timer: {
+							$ne: null,
+						},
 					},
 					{
 						time: {
@@ -306,6 +310,7 @@ var commands = [
 					}
 					let message = '~ ~ ~ Event List ~ ~ ~\n';
 					for (let i = 0; i < docs.length; i++) {
+						let recurring = docs[i].timer !== undefined;
 						message += `EventID:   \`${docs[i]._id}\`\n`;
 						message += `Message:   \`${docs[i].message}\`\n`;
 						message += `Time:      \`${new Date(docs[i].time * 1000).toUTCString()}\`\n`;
@@ -313,7 +318,7 @@ var commands = [
 						if (docs[i].hidden) {
 							message += `Hidden:    \`TRUE\`\n`;
 						}
-						if (docs[i].recurring) {
+						if (recurring) {
 							message += `Reccuring: Every \`${docs[i].timer}\` seconds\n`;
 						}
 						message += '------\n';
@@ -340,7 +345,7 @@ var commands = [
 				timeNow = Math.floor(new Date() / 1000);
 				db.collection('events')
 					.update({
-						_id: new Mongo.ObjectID(args[0]),
+						_id: args[0].toLowerCase(),
 						dead: {
 							$ne: true,
 						},
@@ -402,7 +407,7 @@ var commands = [
 				timeNow = Math.floor(new Date() / 1000);
 				db.collection('events')
 					.update({
-						_id: new Mongo.ObjectID(args[0]),
+						_id: args[0].toLowerCase(),
 					}, {
 						$pull: {
 							channels: id,
@@ -541,7 +546,9 @@ function syncEvents() {
 					},
 				},
 				{
-					recurring: true,
+					timer: {
+						$ne: null,
+					},
 				},
 			],
 		})
@@ -568,7 +575,7 @@ function checkEvents() {
 			for (let j = 0; j < e.channels.length; j++) {
 				bot.createMessage(e.channels[j], e.message);
 			}
-		} else if (e.recurring && (timeNow - e.time) % e.timer === 0) {
+		} else if (e.timer !== undefined && (timeNow - e.time) % e.timer === 0) {
 			log.debug('Event activated', e);
 			for (let j = 0; j < e.channels.length; j++) {
 				bot.createMessage(e.channels[j], e.message);
@@ -580,6 +587,7 @@ function checkEvents() {
 function initialise() {
 	log.verbose('Initialising bot instance');
 	process.on('SIGINT', () => {
+		log.info('Shutting Down');
 		db.close();
 		process.exit();
 	});
